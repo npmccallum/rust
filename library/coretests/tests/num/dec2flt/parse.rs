@@ -96,11 +96,9 @@ fn regression() {
 #[test]
 #[cfg(target_has_reliable_f16)]
 fn f16_subnormal_halfway_rounds_ties_to_even() {
-    // FIXME: This passes, but ties-to-even requires 0x0000.
-    assert_float_result_bits_eq!(0x0001, f16, "0.0000000298023223876953125");
+    assert_float_result_bits_eq!(0x0000, f16, "0.0000000298023223876953125");
     assert_float_result_bits_eq!(0x0002, f16, "0.0000000894069671630859375");
-    // FIXME: This passes, but ties-to-even requires 0x0002.
-    assert_float_result_bits_eq!(0x0003, f16, "0.0000001490116119384765625");
+    assert_float_result_bits_eq!(0x0002, f16, "0.0000001490116119384765625");
 }
 
 #[test]

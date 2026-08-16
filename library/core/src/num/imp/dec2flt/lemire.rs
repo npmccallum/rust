@@ -38,6 +38,7 @@ pub fn compute_float<F: Float>(q: i64, mut w: u64) -> BiasedFp {
     let lz = w.leading_zeros();
     w <<= lz;
     let (lo, hi) = compute_product_approx(q, w, F::SIG_BITS as usize + 3);
+    let inside_safe_exponent = (q >= -27) && (q <= 55);
     if lo == 0xFFFF_FFFF_FFFF_FFFF {
         // If we have failed to approximate w x 5^-q with our 128-bit value.
         // Since the addition of 1 could lead to an overflow which could then
@@ -54,7 +55,6 @@ pub fn compute_float<F: Float>(q: i64, mut w: u64) -> BiasedFp {
         // <https://arxiv.org/pdf/2101.11408.pdf#section.9.1>. For detailed
         // explanations of rounding for positive exponents, see
         // <https://arxiv.org/pdf/2101.11408.pdf#section.8>.
-        let inside_safe_exponent = (q >= -27) && (q <= 55);
         if !inside_safe_exponent {
             return fp_error;
         }
@@ -68,7 +68,16 @@ pub fn compute_float<F: Float>(q: i64, mut w: u64) -> BiasedFp {
             return fp_zero;
         }
         // Have a subnormal value.
-        mantissa >>= -power2 + 1;
+        let shift = (-power2 + 1) as u32;
+        let truncated = mantissa & ((1_u64 << shift) - 1);
+        let is_exact = lo <= 1
+            && inside_safe_exponent
+            && truncated == 0
+            && (mantissa << (upperbit + 64 - F::SIG_BITS as i32 - 3)) == hi;
+        mantissa >>= shift;
+        if is_exact && mantissa & 0b11 == 0b01 {
+            mantissa &= !1_u64;
+        }
         mantissa += mantissa & 1;
         mantissa >>= 1;
         power2 = (mantissa >= (1_u64 << F::SIG_BITS)) as i32;
